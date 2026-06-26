@@ -789,11 +789,7 @@ window.addEventListener('DOMContentLoaded', async () => {
       <i class="ti ti-layout-kanban"></i>
       <span class="sb-lbl">進捗管理</span>
     </div>
-    <div id="sb-grad-prog" style="display:flex;gap:4px;padding:2px 10px 6px;flex-wrap:wrap">
-      <div class="sb-grad-btn active" data-year="28卒" onclick="setSbGradYear('prog','28卒',this)">28卒</div>
-      <div class="sb-grad-btn" data-year="29卒" onclick="setSbGradYear('prog','29卒',this)">29卒</div>
-      <div class="sb-grad-btn" data-year="30卒" onclick="setSbGradYear('prog','30卒',this)">30卒</div>
-    </div>    <div class="sb-item" id="snav-budget" onclick="switchView('budget')">
+    <div class="sb-item" id="snav-budget" onclick="switchView('budget')">
       <i class="ti ti-chart-bar"></i>
       <span class="sb-lbl">予算・売上管理</span>
     </div>
@@ -1100,7 +1096,15 @@ window.addEventListener('DOMContentLoaded', async () => {
           <div id="scout-proposal-view" style="display:none">
             <div class="sl" style="margin-top:0;display:flex;align-items:center;justify-content:space-between">
               <span>次年度提案時期 企業数</span>
-              <span style="font-size:10px;color:var(--text2)">棒グラフをクリックで対象企業を表示</span>
+              <div style="display:flex;align-items:center;gap:6px">
+                <div id="proposalGradBtns" style="display:flex;gap:4px">
+                  <div class="grad-multi-btn active" data-year="" onclick="toggleGradBtn(this,'scout')" style="font-size:11px">すべて</div>
+                  <div class="grad-multi-btn" data-year="28卒" onclick="toggleGradBtn(this,'scout')" style="font-size:11px">28卒</div>
+                  <div class="grad-multi-btn" data-year="29卒" onclick="toggleGradBtn(this,'scout')" style="font-size:11px">29卒</div>
+                  <div class="grad-multi-btn" data-year="30卒" onclick="toggleGradBtn(this,'scout')" style="font-size:11px">30卒</div>
+                </div>
+                <span style="font-size:10px;color:var(--text2)">棒グラフをクリックで対象企業を表示</span>
+              </div>
             </div>
             <div class="ic" style="margin-bottom:8px;padding:14px 16px">
               <div id="proposal-chart-wrap" style="position:relative;height:200px">
@@ -2292,7 +2296,7 @@ window.switchView = function switchView(id) {
   document.getElementById('tb-crumb').textContent = VIEW_META[id].crumb;
   // prog以外では卒年度ボタンを非表示
   const gradWrap=document.getElementById('sb-grad-prog');
-  if(gradWrap) gradWrap.style.display = id==='prog' ? 'flex' : 'none';
+  if(gradWrap) gradWrap.style.display = 'none';
   if(id==='budget') renderBudget();
   if(id==='施策') render施策();
   if(id==='schedule') renderSchedule();
@@ -2329,12 +2333,6 @@ window.switchProgTab = function switchProgTab(n) {
   if(n===2) renderScout();
   if(n===3) renderPhaseAll();
   if(n===4) renderInvoicePage();
-  // タブに応じて卒年度ボタン表示切り替え
-  const gradWrap = document.getElementById('sb-grad-prog');
-  if(gradWrap){
-    // スカウト承諾(2)・次年度提案切替時も表示、それ以外は非表示
-    gradWrap.style.display = (n===0||n===2) ? 'flex' : 'none';
-  }
 }
 function setMonth(el){
   document.querySelectorAll('.mt').forEach(t=>t.classList.remove('active'));
@@ -8967,10 +8965,7 @@ function setScoutActive(el){
   const val=el.dataset.sactive;
   scoutProposalMode=(val==='proposal');
 
-  // 卒年度ボタン：スカウト承諾・次年度提案タブでは常に表示
-  const gradWrap=document.getElementById('sb-grad-prog');
-  if(gradWrap) gradWrap.style.display='flex';
-
+  // 卒年度ボタン：次年度提案ビュー内のボタンで制御するので不要
   const proposalView=document.getElementById('scout-proposal-view');
   const hideEls=['scout-kpi','scout-charts','scout-matrix-wrap'];
   // scout-matrix-labelの親div(.sl)も隠す
