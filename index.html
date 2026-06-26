@@ -1,6 +1,9 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>ABABA PS 案件管理システム</title>
@@ -413,11 +416,7 @@ tr:hover td{background:var(--bg3)}
 @media(max-width:700px){.sch-met{grid-template-columns:repeat(2,1fr)}}
 </style>
 <!-- ===== Firebase SDK ===== -->
-<script type="module">
-import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
-import { getFirestore, doc, collection, setDoc, getDoc, getDocs, onSnapshot, writeBatch } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
-import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
-
+<script>
 const firebaseConfig = {
   apiKey: "AIzaSyCxXqDYSwsK1curQvhXnDIs1A_wGT4r34Q",
   authDomain: "ababa-ps.firebaseapp.com",
@@ -427,23 +426,48 @@ const firebaseConfig = {
   appId: "1:955415842103:web:c62b06503efd30a443deb2"
 };
 
-const app = initializeApp(firebaseConfig);
-const db  = getFirestore(app);
+firebase.initializeApp(firebaseConfig);
+const db  = firebase.firestore();
+const auth = firebase.auth();
+const provider = new firebase.auth.GoogleAuthProvider();
+provider.setCustomParameters({hd: 'hr-ababa.com'});
 
 // ── ユーティリティ ──
 async function fbSet(colName, docId, data){
-  try { await setDoc(doc(db, colName, docId), { data: JSON.stringify(data) }); }
+  try { await db.collection(colName).doc(docId).set({ data: JSON.stringify(data) }); }
   catch(e){ console.warn('Firebase write error:', e); }
 }
 async function fbGet(colName, docId){
   try {
-    const snap = await getDoc(doc(db, colName, docId));
-    if(snap.exists()) return JSON.parse(snap.data().data);
+    const snap = await db.collection(colName).doc(docId).get();
+    if(snap.exists) return JSON.parse(snap.data().data);
   } catch(e){ console.warn('Firebase read error:', e); }
   return null;
 }
 function fbListen(colName, docId, callback){
-  return onSnapshot(doc(db, colName, docId), snap => {
+  return db.collection(colName).doc(docId).onSnapshot(snap=>{
+    if(snap.exists) { try{ callback(JSON.parse(snap.data().data)); }catch(e){} }
+  });
+}
+window._fbSet = fbSet;
+window._fbGet = fbGet;
+window._fbListen = fbListen;
+window._fbOnSnapshot = fbListen;
+
+// ── ユーティリティ ──
+async function fbSet(colName, docId, data){
+  try { await db.collection(colName).doc(docId).set({ data: JSON.stringify(data) }); }
+  catch(e){ console.warn('Firebase write error:', e); }
+}
+async function fbGet(colName, docId){
+  try {
+    const snap = await db.collection(colName).doc(docId).get();
+    if(snap.exists) return JSON.parse(snap.data().data);
+  } catch(e){ console.warn('Firebase read error:', e); }
+  return null;
+}
+function fbListen(colName, docId, callback){
+  return db.collection(colName).doc(docId).onSnapshot(snap => {
     if(snap.exists()){
       try { callback(JSON.parse(snap.data().data)); } catch(e){}
     }
@@ -529,8 +553,7 @@ window._fbReady = false;
 window._fbSet = fbSet;
 window._fbDel = async function(col, docId){
   try{
-    const { deleteDoc } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
-    await deleteDoc(doc(db, col, docId));
+    await db.collection(col).doc(docId).delete();
   }catch(e){ console.error('削除エラー',e); }
 };
 
@@ -588,7 +611,7 @@ let ALLOWED_USERS = {...BASE_USERS};
 async function loadAllowedUsers(){
   try {
     const db = getFirestore();
-    const snap = await getDocs(collection(db, 'ababa_ps'));
+    const snap = await db.collection('ababa_ps').get();
     snap.forEach(doc => {
       const d = doc.data();
       // ababa_admin_user_ で始まるドキュメントを追加ユーザーとして読み込む
@@ -601,16 +624,12 @@ async function loadAllowedUsers(){
   }
 }
 
-const auth = getAuth(app);
-const provider = new GoogleAuthProvider();
-provider.setCustomParameters({hd: 'hr-ababa.com'}); // hr-ababa.comドメインに限定
-
 // Googleログイン実行
 window.signInWithGoogle = async function(){
   const btn=document.getElementById('google-signin-btn');
   if(btn){btn.disabled=true;btn.innerHTML='<span style="font-size:13px">ログイン中...</span>';}
   try{
-    const result = await signInWithPopup(auth, provider);
+    const result = await auth.signInWithPopup(provider);
     // onAuthStateChangedで処理するのでここでは何もしない
   } catch(e){
     const btn=document.getElementById('google-signin-btn');
@@ -621,7 +640,7 @@ window.signInWithGoogle = async function(){
 };
 
 window.signOutGoogle = async function(){
-  await signOut(auth);
+  await auth.signOut();
   window._currentUser=null;
   document.getElementById('lock-screen').style.display='flex';
   document.getElementById('lock-error').style.display='none';
@@ -629,13 +648,13 @@ window.signOutGoogle = async function(){
 window.logoutAbaba = window.signOutGoogle;
 
 // 認証状態の監視（ユーザーリストをFirestoreから読み込んでから判定）
-onAuthStateChanged(auth, async (user) => {
+auth.onAuthStateChanged(async (user) => {
   if(user){
     const email = user.email;
     const userInfo = ALLOWED_USERS[email];
     if(!userInfo){
       // 許可されていないアカウント
-      signOut(auth);
+      auth.signOut();
       const errEl=document.getElementById('lock-error');
       if(errEl){errEl.textContent=email+'はアクセス許可されていません。管理者にお問い合わせください。';errEl.style.display='block';}
       return;
