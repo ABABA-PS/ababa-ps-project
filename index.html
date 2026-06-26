@@ -793,8 +793,7 @@ window.addEventListener('DOMContentLoaded', async () => {
       <div class="sb-grad-btn active" data-year="28卒" onclick="setSbGradYear('prog','28卒',this)">28卒</div>
       <div class="sb-grad-btn" data-year="29卒" onclick="setSbGradYear('prog','29卒',this)">29卒</div>
       <div class="sb-grad-btn" data-year="30卒" onclick="setSbGradYear('prog','30卒',this)">30卒</div>
-    </div>
-    <div class="sb-item" id="snav-budget" onclick="switchView('budget')">
+    </div>    <div class="sb-item" id="snav-budget" onclick="switchView('budget')">
       <i class="ti ti-chart-bar"></i>
       <span class="sb-lbl">予算・売上管理</span>
     </div>
@@ -2291,6 +2290,9 @@ window.switchView = function switchView(id) {
   document.getElementById('snav-'+id).classList.add('active');
   document.getElementById('tb-title').textContent = VIEW_META[id].title;
   document.getElementById('tb-crumb').textContent = VIEW_META[id].crumb;
+  // prog以外では卒年度ボタンを非表示
+  const gradWrap=document.getElementById('sb-grad-prog');
+  if(gradWrap) gradWrap.style.display = id==='prog' ? 'flex' : 'none';
   if(id==='budget') renderBudget();
   if(id==='施策') render施策();
   if(id==='schedule') renderSchedule();
@@ -2327,6 +2329,12 @@ window.switchProgTab = function switchProgTab(n) {
   if(n===2) renderScout();
   if(n===3) renderPhaseAll();
   if(n===4) renderInvoicePage();
+  // タブに応じて卒年度ボタン表示切り替え
+  const gradWrap = document.getElementById('sb-grad-prog');
+  if(gradWrap){
+    // スカウト承諾(2)・次年度提案切替時も表示、それ以外は非表示
+    gradWrap.style.display = (n===0||n===2) ? 'flex' : 'none';
+  }
 }
 function setMonth(el){
   document.querySelectorAll('.mt').forEach(t=>t.classList.remove('active'));
@@ -8959,6 +8967,10 @@ function setScoutActive(el){
   const val=el.dataset.sactive;
   scoutProposalMode=(val==='proposal');
 
+  // 卒年度ボタン：スカウト承諾・次年度提案タブでは常に表示
+  const gradWrap=document.getElementById('sb-grad-prog');
+  if(gradWrap) gradWrap.style.display='flex';
+
   const proposalView=document.getElementById('scout-proposal-view');
   const hideEls=['scout-kpi','scout-charts','scout-matrix-wrap'];
   // scout-matrix-labelの親div(.sl)も隠す
@@ -12689,5 +12701,6 @@ function paSelectRpo(id){ _paCurrentRpo=id; loadPaData(id); renderPartnerAnalysi
 function closePaModal(id){ document.getElementById(id)?.classList.remove('open'); }
 
 
+</script>
 </body>
 </html>
